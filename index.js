@@ -78,7 +78,7 @@ const sendEmail = async (body) => {
         transporter.sendMail({
             from: process.env.MAIL,
             to: process.env.TO,
-            subject: `Заявка от ${org} на ${deadline}`,
+            subject: `Заявка от ${org} ${deadline}`,
             html: message
         }, (err, info) => {
             if(err) {
