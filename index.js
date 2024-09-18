@@ -19,21 +19,21 @@ app.use(express.json());
 
 // Функция для отправки email
 const sendEmail = async (body) => {
-    try {
-        // Деструктуризация с проверкой на наличие данных и установкой значений по умолчанию
-        const {
-            ma_email = 'no-email-provided',
-            ma_name = 'Не указано',
-            org = 'Не указана организация',
-            address = 'Не указан адрес',
-            deadline = 'Не указан срок',
-            payment = {}
-        } = body;
+    // Проверка, существует ли объект payment и его поля
+    const {
+        ma_email = 'no-email-provided',
+        ma_name = 'Не указано',
+        org = 'Не указана организация',
+        address = 'Не указан адрес',
+        deadline = 'Не указан срок',
+        payment = {} // Если payment не передан, используем пустой объект по умолчанию
+    } = body;
 
-        const {
-            amount = 0,
-            products = []
-        } = payment;
+    // Деструктуризация payment с установкой значений по умолчанию
+    const {
+        amount = 0,
+        products = [] // Если products отсутствуют, используем пустой массив по умолчанию
+    } = payment;
 
         const comment = body['Комментарий'] || ''; // Обработка необязательного комментария
         
