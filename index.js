@@ -1,5 +1,10 @@
+const express = require('express');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
+
+// Создание экземпляра приложения Express
+const app = express();
+app.use(express.json());
 
 // Логирование переменных окружения
 console.log('YANDEX_EMAIL:', process.env.YANDEX_EMAIL);
@@ -71,7 +76,7 @@ async function sendEmail(payment, org, address, comment, deadline, customerEmail
 app.post('/webhook', (req, res) => {
     const { org, address, comment, deadline, payment, ma_email } = req.body;
 
-    // Логируем
+    // Логируем тело запроса
     console.log('Request Body: ', req.body);
 
     // Проверяем, есть ли все необходимые поля
@@ -86,4 +91,10 @@ app.post('/webhook', (req, res) => {
     }
 
     res.status(200).send('OK');
+});
+
+// Запуск сервера
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });
