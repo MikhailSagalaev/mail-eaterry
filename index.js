@@ -1,100 +1,131 @@
 const express = require('express');
-const nodemailer = require('nodemailer');
-require('dotenv').config();
-
-// Создание экземпляра приложения Express
 const app = express();
+require('dotenv').config();
+const nodemailer = require('nodemailer');
+
+const transporter = nodemailer.createTransport({
+    host: "ssl://smtp.mail.ru",
+    port: 465,
+    secure: true,
+    auth: {
+        user: process.env.MAIL,
+        pass: process.env.PASSWORD
+    }
+});
+
 app.use(express.json());
 
-// Логирование переменных окружения
-console.log('YANDEX_EMAIL:', process.env.YANDEX_EMAIL);
-console.log('YANDEX_PASSWORD:', process.env.YANDEX_PASSWORD);
-console.log('TO:', process.env.TO);
-console.log('MAIL:', process.env.MAIL);
+const sendEmail = async (body) => {
+    // Проверяем наличие полей перед деструктуризацией
+    const ma_email = body?.ma_email || '';
+    const ma_name = body?.ma_name || '';
+    const org = body?.org || '';
+    const address = body?.address || '';
+    const deadline = body?.deadline || '';
+    const comment = body['Комментарий'] || '';
+    
+    // Проверяем, существует ли объект payment
+    const payment = body?.payment || {};
+    const amount = payment?.amount || 0;
+    const products = payment?.products || [];
 
-// Настройка транспорта для SMTP Яндекса
-const transporter = nodemailer.createTransport({
-    host: 'smtp.yandex.ru',
-    port: 465,
-    secure: true, // true для 465, false для других портов
-    auth: {
-        user: process.env.YANDEX_EMAIL,
-        pass: process.env.YANDEX_PASSWORD
-    }
+    // Проверяем наличие продуктов перед сортировкой
+    const sortedProducts = products.length > 0 ? products.sort((a, b) => {
+        const nameA = a.name ? a.name.toLowerCase() : '';
+        const nameB = b.name ? a.name.toLowerCase() : '';
+
+        if (nameA < nameB) return -1;
+        if (nameA > nameB) return 1;
+        return 0;
+    }) : [];
+
+    // Вычисляем количество только если есть продукт
+    const totalQuantity = sortedProducts.reduce((acc, cur) => acc + (cur.quantity || 0), 0);
+
+    // Формируем сообщение, даже если данные неполные
+    let message = `
+      <h2>Информация о покупателе:</h2>
+      <p style="font-size: 20px">
+        <span style="margin: 5px 0">email: ${ma_email}</span> <br/>
+        <span style="margin: 5px 0">name: ${ma_name}</span> <br/>
+        <span style="margin: 5px 0">org: ${org}</span> <br/>
+        <span style="margin: 5px 0">address: ${address}</span> <br/>
+        <span style="margin: 5px 0">comment: ${comment}</span> <br/>
+        <span style="margin: 5px 0">deadline: ${deadline}</span> <br/>
+      </p>
+      <table style="margin-top: 30px;width: 100%;border-collapse: collapse;">
+        <thead>
+          <th style="text-align: left;font-weight: bold;padding: 5px;background: #efefef;border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;"> # </th>
+          <th style="text-align: left;font-weight: bold;padding: 5px;background: #efefef;border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;"> Название </th>
+          <th style="text-align: left;font-weight: bold;padding: 5px;background: #efefef;border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;"> Кол-во </th>
+          <th style="text-align: left;font-weight: bold;padding: 5px;background: #efefef;border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;"> Цена (РУБ)</th>
+          <th style="text-align: left;font-weight: bold;padding: 5px;background: #efefef;border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;"> Сумма (РУБ) </th>
+        </thead>
+    `;
+
+    // Если есть продукты, добавляем их в сообщение
+    sortedProducts.forEach((product, idx) => {
+        message += `
+          <tr>
+            <td style="border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;padding: 5px;">${idx + 1}</td>
+            <td style="border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;padding: 5px;">${product.name || ''}</td>
+            <td style="border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;padding: 5px;">${product.quantity || 0}</td>
+            <td style="border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;padding: 5px;">${product.price || 0}</td>
+            <td style="border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;padding: 5px;">${product.amount || 0}</td>
+          </tr>
+        `;
+    });
+
+    message += `
+      <tr>
+        <td></td>
+        <td></td>
+        <td style="font-size: 24px; font-weight: bold; padding: 20px 10px">КОЛ-ВО БЛЮД: ${totalQuantity}</td>
+        <td></td>
+        <td style="font-size: 24px; font-weight: bold; text-align: right; padding: 20px 10px">ИТОГО: ${amount} РУБ</td>
+      </tr>
+    </table>`;
+
+
+    // Отправка письма, даже если тело пустое или содержит только тестовые данные
+    return new Promise((res, rej) => {
+        transporter.sendMail({
+            from: process.env.MAIL,
+            to: process.env.TO,
+            subject: `Заявка от ${org || 'неизвестной организации'} на ${deadline || 'неизвестную дату'}`,
+            html: message
+        }, (err, info) => {
+            if (err) {
+                rej();
+                console.log(err);
+            } else {
+                res();
+                console.log("Message sent: " + info.response);
+            }
+        });
+    });
+};
+
+
+
+app.get('/', (req, res) => {
+    res.send('ok');
 });
 
-// Функция отправки email через SMTP Яндекса
-async function sendEmail(payment, org, address, comment, deadline, customerEmail) {
+app.post('/', async (req, res) => {
     try {
-        // Сортируем продукты по алфавиту
-        const sortedProducts = payment.products.sort((a, b) => a.name.localeCompare(b.name));
-
-        // Формируем HTML-контент для письма
-        const htmlContent = `
-            <h2>Заказ от ${org}</h2>
-            <p><strong>Адрес:</strong> ${address}</p>
-            <p><strong>Комментарий:</strong> ${comment}</p>
-            <p><strong>Крайний срок:</strong> ${deadline}</p>
-            <p><strong>Состав заказа:</strong></p>
-            <ul>
-                ${sortedProducts.map(product => `<li>${product.name} - ${product.quantity}</li>`).join('')}
-            </ul>
-            <p><strong>Общая сумма:</strong> ${payment.amount} руб.</p>
-        `;
-
-        // Настройки письма
-        const mailOptions = {
-            from: `"Ваш Магазин" <${process.env.YANDEX_EMAIL}>`,
-            to: process.env.TO,  // Адрес, на который отправляем письмо
-            subject: 'Новый заказ',
-            html: htmlContent
-        };
-
-        // Отправляем письмо через SMTP Яндекса
-        const response = await transporter.sendMail(mailOptions);
-        console.log('Message sent:', response);
-
-        // Отправка письма покупателю
-        if (customerEmail) {
-            const customerMailOptions = {
-                from: `"Ваш Магазин" <${process.env.YANDEX_EMAIL}>`,
-                to: customerEmail,  // Email покупателя
-                subject: 'Подтверждение вашего заказа',
-                html: htmlContent
-            };
-
-            const customerResponse = await transporter.sendMail(customerMailOptions);
-            console.log('Message sent to customer:', customerResponse);
-        }
-
+        console.log("Request Body: ", req.body); // Логируем тело запроса
+        await sendEmail(req.body);
+        res.send('ok');
     } catch (error) {
         console.error('Error sending email:', error);
+        res.status(500).send('Error');
     }
-}
-
-// Пример обработчика POST-запроса (добавьте в свою экспресс-апп)
-app.post('/webhook', (req, res) => {
-    const { org, address, comment, deadline, payment, ma_email } = req.body;
-
-    // Логируем тело запроса
-    console.log('Request Body: ', req.body);
-
-    // Проверяем, есть ли все необходимые поля
-    if (!org || !address || !comment || !deadline || !payment || !payment.products) {
-        console.error('Missing required fields in request body');
-        return res.status(400).send('Missing required fields');
-    }
-
-    // Проверяем, есть ли payment, иначе не отправляем
-    if (payment && payment.products) {
-        sendEmail(payment, org, address, comment, deadline, ma_email);
-    }
-
-    res.status(200).send('OK');
 });
 
-// Запуск сервера
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+
+app.listen(process.env.PORT || 3000, () => {
+    console.log('Server is running...');
 });
+
+module.exports = app;
