@@ -1,7 +1,18 @@
-const axios = require('axios');
+const nodemailer = require('nodemailer');
 require('dotenv').config();
 
-// Функция отправки email через UniSender
+// Настройка транспорта для SMTP Яндекса
+const transporter = nodemailer.createTransport({
+    host: 'smtp.yandex.ru',
+    port: 465,
+    secure: true, // true для 465, false для других портов
+    auth: {
+        user: process.env.MAIL,
+        pass: process.env.PASSWORD
+    }
+});
+
+// Функция отправки email через SMTP Яндекса
 async function sendEmail(payment, org, address, comment, deadline, customerEmail) {
     try {
         // Сортируем продукты по алфавиту
@@ -20,48 +31,37 @@ async function sendEmail(payment, org, address, comment, deadline, customerEmail
             <p><strong>Общая сумма:</strong> ${payment.amount} руб.</p>
         `;
 
-        // Настройки письма для владельца
-        const ownerMessage = {
-            api_key: process.env.UNISENDER_API_KEY,
-            email: process.env.TO,  // Адрес владельца
-            sender_name: 'Ваш Магазин',
-            sender_email: process.env.MAIL,  // Email отправителя
+        // Настройки письма
+        const mailOptions = {
+            from: `"Ваш Магазин" <${process.env.MAIL}>`,
+            to: process.env.TO,  // Адрес, на который отправляем письмо
             subject: 'Новый заказ',
-            body: htmlContent,
-            list_id: process.env.UNISENDER_LIST_ID // Если у вас используется список контактов
+            html: htmlContent
         };
 
-        // Отправляем письмо владельцу через UniSender
-        const ownerResponse = await axios.post('https://api.unisender.com/ru/api/sendEmail', ownerMessage);
-        console.log('Message sent to owner:', ownerResponse.data);
+        // Отправляем письмо через SMTP Яндекса
+        const response = await transporter.sendMail(mailOptions);
+        console.log('Message sent:', response);
 
         // Отправка письма покупателю
         if (customerEmail) {
-            const customerMessage = {
-                api_key: process.env.UNISENDER_API_KEY,
-                email: customerEmail,  // Email покупателя
-                sender_name: 'Ваш Магазин',
-                sender_email: process.env.MAIL,
+            const customerMailOptions = {
+                from: `"Ваш Магазин" <${process.env.MAIL}>`,
+                to: customerEmail,  // Email покупателя
                 subject: 'Подтверждение вашего заказа',
-                body: htmlContent,
-                list_id: process.env.UNISENDER_LIST_ID // Если у вас используется список контактов
+                html: htmlContent
             };
 
-            const customerResponse = await axios.post('https://api.unisender.com/ru/api/sendEmail', customerMessage);
-            console.log('Message sent to customer:', customerResponse.data);
+            const customerResponse = await transporter.sendMail(customerMailOptions);
+            console.log('Message sent to customer:', customerResponse);
         }
 
     } catch (error) {
-        console.error('Error sending email:', error.response ? error.response.data : error.message);
+        console.error('Error sending email:', error);
     }
 }
 
-// Пример обработчика POST-запроса
-const express = require('express');
-const app = express();
-
-app.use(express.json());
-
+// Пример обработчика POST-запроса (добавьте в свою экспресс-апп)
 app.post('/webhook', (req, res) => {
     const { org, address, comment, deadline, payment, ma_email } = req.body;
 
@@ -74,10 +74,4 @@ app.post('/webhook', (req, res) => {
     }
 
     res.status(200).send('OK');
-});
-
-// Запуск сервера
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Сервер запущен на порту ${PORT}`);
 });
