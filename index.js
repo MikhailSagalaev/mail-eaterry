@@ -1,6 +1,12 @@
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
+// Логирование переменных окружения
+console.log('YANDEX_EMAIL:', process.env.YANDEX_EMAIL);
+console.log('YANDEX_PASSWORD:', process.env.YANDEX_PASSWORD);
+console.log('TO:', process.env.TO);
+console.log('MAIL:', process.env.MAIL);
+
 // Настройка транспорта для SMTP Яндекса
 const transporter = nodemailer.createTransport({
     host: 'smtp.yandex.ru',
