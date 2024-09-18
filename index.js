@@ -68,6 +68,12 @@ app.post('/webhook', (req, res) => {
     // Логируем тело запроса
     console.log('Request Body: ', req.body);
 
+    // Проверяем, есть ли все необходимые поля
+    if (!org || !address || !comment || !deadline || !payment || !payment.products) {
+        console.error('Missing required fields in request body');
+        return res.status(400).send('Missing required fields');
+    }
+
     // Проверяем, есть ли payment, иначе не отправляем
     if (payment && payment.products) {
         sendEmail(payment, org, address, comment, deadline, ma_email);
