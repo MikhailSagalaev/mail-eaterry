@@ -20,22 +20,28 @@ app.use(express.json());
 // Функция для отправки email
 const sendEmail = async (body) => {
     try {
-        // Деструктуризация данных с проверкой
-        const { ma_email, ma_name, org, address, deadline, payment } = body;
+        // Деструктуризация с проверкой на наличие данных и установкой значений по умолчанию
+        const {
+            ma_email = 'no-email-provided',
+            ma_name = 'Не указано',
+            org = 'Не указана организация',
+            address = 'Не указан адрес',
+            deadline = 'Не указан срок',
+            payment = {}
+        } = body;
 
-        // Если объект payment отсутствует или не содержит products или amount
-        if (!payment || !payment.products || !payment.amount) {
-            throw new Error('Payment data is missing or incomplete');
-        }
+        const {
+            amount = 0,
+            products = []
+        } = payment;
 
-        const { amount, products } = payment;
         const comment = body['Комментарий'] || ''; // Обработка необязательного комментария
         
         // Сортировка продуктов по названию
         const sortedProducts = products.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
         
         // Подсчет общего количества продуктов
-        const totalQuantity = sortedProducts.reduce((acc, cur) => acc + cur.quantity, 0);
+        const totalQuantity = sortedProducts.reduce((acc, cur) => acc + (cur.quantity || 0), 0);
         
         // Формирование HTML-сообщения
         let message = `
@@ -62,10 +68,10 @@ const sendEmail = async (body) => {
             message += `
                 <tr>
                     <td style="border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;padding: 5px;">${idx + 1}</td>
-                    <td style="border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;padding: 5px;">${product.name}</td>
-                    <td style="border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;padding: 5px;">${product.quantity}</td>
-                    <td style="border-top: 1px solid #dddddd;border-bottom: 1px солид #dddddd;padding: 5px;">${product.price}</td>
-                    <td style="border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;padding: 5px;">${product.amount}</td>
+                    <td style="border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;padding: 5px;">${product.name || 'Не указано'}</td>
+                    <td style="border-top: 1px solid #dddddd;border-bottom: 1px солид #dddddd;padding: 5px;">${product.quantity || 0}</td>
+                    <td style="border-top: 1px solid #dddddd;border-bottom: 1px солид #dddddd;padding: 5px;">${product.price || 0}</td>
+                    <td style="border-top: 1px solid #dddddd;border-bottom: 1px солид #dddddd;padding: 5px;">${product.amount || 0}</td>
                 </tr>
             `;
         });
@@ -102,11 +108,6 @@ app.get('/', (req, res) => {
 // Маршрут для обработки POST-запросов и отправки email
 app.post('/', async (req, res) => {
     try {
-        // Проверка на наличие данных в запросе
-        if (!req.body || !req.body.payment || !req.body.payment.products) {
-            return res.status(400).json({ message: 'Invalid request body: missing payment or products' });
-        }
-
         // Вызов функции отправки email
         await sendEmail(req.body);
         res.status(200).send('Email sent successfully');
