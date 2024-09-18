@@ -71,7 +71,7 @@ async function sendEmail(payment, org, address, comment, deadline, customerEmail
 app.post('/webhook', (req, res) => {
     const { org, address, comment, deadline, payment, ma_email } = req.body;
 
-    // Логируем тело запроса
+    // Логируем
     console.log('Request Body: ', req.body);
 
     // Проверяем, есть ли все необходимые поля
