@@ -39,7 +39,7 @@ const sendEmail = async (body) => {
         return 0;
     }) : [];
 
-    // Вычисляем количество только если есть продукты
+    // Вычисляем количество только если есть продукт
     const totalQuantity = sortedProducts.reduce((acc, cur) => acc + (cur.quantity || 0), 0);
 
     // Формируем сообщение, даже если данные неполные
