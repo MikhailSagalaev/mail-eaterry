@@ -4,9 +4,9 @@ require('dotenv').config();
 const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
-    host: "ssl://smtp.mail.ru",
-    port: 465,
-    secure: true,
+    host: "smtp.mail.ru",  // исправлен хост
+    port: 465,             // порт для SSL
+    secure: true,          // true для использования SSL
     auth: {
         user: process.env.MAIL,
         pass: process.env.PASSWORD
@@ -15,34 +15,32 @@ const transporter = nodemailer.createTransport({
 
 app.use(express.json());
 
+// Функция для отправки email с логированием
 const sendEmail = async (body) => {
-    // Проверяем наличие полей перед деструктуризацией
+    // Логируем тело запроса
+    console.log("Тело запроса для отправки email: ", body);
+
     const ma_email = body?.ma_email || '';
     const ma_name = body?.ma_name || '';
     const org = body?.org || '';
     const address = body?.address || '';
     const deadline = body?.deadline || '';
     const comment = body['Комментарий'] || '';
-    
-    // Проверяем, существует ли объект payment
+
     const payment = body?.payment || {};
     const amount = payment?.amount || 0;
     const products = payment?.products || [];
 
-    // Проверяем наличие продуктов перед сортировкой
     const sortedProducts = products.length > 0 ? products.sort((a, b) => {
         const nameA = a.name ? a.name.toLowerCase() : '';
-        const nameB = b.name ? a.name.toLowerCase() : '';
-
+        const nameB = b.name ? b.name.toLowerCase() : '';  // Исправил ошибку с неправильной сортировкой
         if (nameA < nameB) return -1;
         if (nameA > nameB) return 1;
         return 0;
     }) : [];
 
-    // Вычисляем количество только если есть продукт
     const totalQuantity = sortedProducts.reduce((acc, cur) => acc + (cur.quantity || 0), 0);
 
-    // Формируем сообщение, даже если данные неполные
     let message = `
       <h2>Информация о покупателе:</h2>
       <p style="font-size: 20px">
@@ -58,12 +56,11 @@ const sendEmail = async (body) => {
           <th style="text-align: left;font-weight: bold;padding: 5px;background: #efefef;border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;"> # </th>
           <th style="text-align: left;font-weight: bold;padding: 5px;background: #efefef;border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;"> Название </th>
           <th style="text-align: left;font-weight: bold;padding: 5px;background: #efefef;border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;"> Кол-во </th>
-          <th style="text-align: left;font-weight: bold;padding: 5px;background: #efefef;border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;"> Цена (РУБ)</th>
-          <th style="text-align: left;font-weight: bold;padding: 5px;background: #efefef;border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;"> Сумма (РУБ) </th>
+          <th style="text-align: left;font-weight: bold;padding: 5px;background: #efefef;border-top: 1px солид #dddddd;border-bottom: 1px солид #dddddd;"> Цена (РУБ) </th>
+          <th style="text-align: left;font-weight: bold;padding: 5px;background: #efefef;border-top: 1px солид #dddddd;border-bottom: 1px солид #dddddd;"> Сумма (РУБ) </th>
         </thead>
     `;
 
-    // Если есть продукты, добавляем их в сообщение
     sortedProducts.forEach((product, idx) => {
         message += `
           <tr>
@@ -86,46 +83,43 @@ const sendEmail = async (body) => {
       </tr>
     </table>`;
 
+    console.log("Отправляем письмо с содержимым: ", message);
 
-    // Отправка письма, даже если тело пустое или содержит только тестовые данные
-    return new Promise((res, rej) => {
-        transporter.sendMail({
+    // Логирование процесса отправки письма
+    try {
+        const info = await transporter.sendMail({
             from: process.env.MAIL,
             to: process.env.TO,
             subject: `Заявка от ${org || 'неизвестной организации'} на ${deadline || 'неизвестную дату'}`,
             html: message
-        }, (err, info) => {
-            if (err) {
-                rej();
-                console.log(err);
-            } else {
-                res();
-                console.log("Message sent: " + info.response);
-            }
         });
-    });
+        console.log("Письмо успешно отправлено: " + info.response);
+    } catch (error) {
+        console.error("Ошибка при отправке письма:", error);
+        throw error;  // Пробрасываем ошибку дальше, чтобы обработать её в запросе
+    }
 };
 
-
-
+// Обработка GET-запросов
 app.get('/', (req, res) => {
     res.send('ok');
 });
 
+// Обработка POST-запросов с логированием ошибок
 app.post('/', async (req, res) => {
     try {
-        console.log("Request Body: ", req.body); // Логируем тело запроса
+        console.log("Получен POST-запрос: ", req.body);  // Логирование тела запроса
         await sendEmail(req.body);
         res.send('ok');
     } catch (error) {
-        console.error('Error sending email:', error);
+        console.error('Ошибка при обработке запроса:', error);
         res.status(500).send('Error');
     }
 });
 
-
+// Запуск сервера с логированием порта
 app.listen(process.env.PORT || 3000, () => {
-    console.log('Server is running...');
+    console.log('Сервер запущен на порту ' + (process.env.PORT || 3000));
 });
 
 module.exports = app;
