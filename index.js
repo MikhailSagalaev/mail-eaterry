@@ -16,15 +16,23 @@ const transporter = nodemailer.createTransport({
 app.use(express.json());
 
 const sendEmail = async (body) => {
-    // Используем безопасную деструктуризацию с дефолтными значениями
-    const { ma_email = '', ma_name = '', org = '', address = '', deadline = '', payment = {} } = body;
-    const { amount = 0, products = [] } = payment;
+    // Проверяем наличие полей перед деструктуризацией
+    const ma_email = body?.ma_email || '';
+    const ma_name = body?.ma_name || '';
+    const org = body?.org || '';
+    const address = body?.address || '';
+    const deadline = body?.deadline || '';
     const comment = body['Комментарий'] || '';
+    
+    // Проверяем, существует ли объект payment
+    const payment = body?.payment || {};
+    const amount = payment?.amount || 0;
+    const products = payment?.products || [];
 
-    // Сортируем продукты только если они существуют
+    // Проверяем наличие продуктов перед сортировкой
     const sortedProducts = products.length > 0 ? products.sort((a, b) => {
         const nameA = a.name ? a.name.toLowerCase() : '';
-        const nameB = b.name ? b.name.toLowerCase() : '';
+        const nameB = b.name ? a.name.toLowerCase() : '';
 
         if (nameA < nameB) return -1;
         if (nameA > nameB) return 1;
@@ -55,6 +63,7 @@ const sendEmail = async (body) => {
         </thead>
     `;
 
+    // Если есть продукты, добавляем их в сообщение
     sortedProducts.forEach((product, idx) => {
         message += `
           <tr>
@@ -77,11 +86,12 @@ const sendEmail = async (body) => {
       </tr>
     </table>`;
 
+    // Отправка письма, даже если тело пустое или содержит только тестовые данные
     return new Promise((res, rej) => {
         transporter.sendMail({
             from: process.env.MAIL,
             to: process.env.TO,
-            subject: `Заявка от ${org} на ${deadline}`,
+            subject: `Заявка от ${org || 'неизвестной организации'} на ${deadline || 'неизвестную дату'}`,
             html: message
         }, (err, info) => {
             if (err) {
@@ -94,6 +104,7 @@ const sendEmail = async (body) => {
         });
     });
 };
+
 
 
 app.get('/', (req, res) => {
