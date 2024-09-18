@@ -109,6 +109,7 @@ app.get('/', (req, res) => {
 
 app.post('/', async (req, res) => {
     try {
+        console.log("Request Body: ", req.body); // Логируем тело запроса
         await sendEmail(req.body);
         res.send('ok');
     } catch (error) {
@@ -116,6 +117,7 @@ app.post('/', async (req, res) => {
         res.status(500).send('Error');
     }
 });
+
 
 app.listen(process.env.PORT || 3000, () => {
     console.log('Server is running...');
