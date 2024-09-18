@@ -7,8 +7,8 @@ const transporter = nodemailer.createTransport({
     port: 465,
     secure: true, // true для 465, false для других портов
     auth: {
-        user: process.env.MAIL,
-        pass: process.env.PASSWORD
+        user: process.env.YANDEX_EMAIL,
+        pass: process.env.YANDEX_PASSWORD
     }
 });
 
@@ -33,7 +33,7 @@ async function sendEmail(payment, org, address, comment, deadline, customerEmail
 
         // Настройки письма
         const mailOptions = {
-            from: `"Ваш Магазин" <${process.env.MAIL}>`,
+            from: `"Ваш Магазин" <${process.env.YANDEX_EMAIL}>`,
             to: process.env.TO,  // Адрес, на который отправляем письмо
             subject: 'Новый заказ',
             html: htmlContent
@@ -46,7 +46,7 @@ async function sendEmail(payment, org, address, comment, deadline, customerEmail
         // Отправка письма покупателю
         if (customerEmail) {
             const customerMailOptions = {
-                from: `"Ваш Магазин" <${process.env.MAIL}>`,
+                from: `"Ваш Магазин" <${process.env.YANDEX_EMAIL}>`,
                 to: customerEmail,  // Email покупателя
                 subject: 'Подтверждение вашего заказа',
                 html: htmlContent
