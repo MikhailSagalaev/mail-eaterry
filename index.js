@@ -20,8 +20,14 @@ app.use(express.json());
 // Функция для отправки email
 const sendEmail = async (body) => {
     try {
-        // Деструктуризация данных из тела запроса
+        // Проверка, что необходимые данные есть
         const { ma_email, ma_name, org, address, deadline, payment } = body;
+
+        // Если объект payment или его свойства отсутствуют, выбрасываем ошибку
+        if (!payment || !payment.products || !payment.amount) {
+            throw new Error('Payment data is missing or incomplete');
+        }
+
         const { amount, products } = payment;
         const comment = body['Комментарий'] || ''; // Обработка необязательного комментария
         
@@ -98,7 +104,7 @@ app.post('/', async (req, res) => {
     try {
         // Проверка на наличие данных в запросе
         if (!req.body || !req.body.payment || !req.body.payment.products) {
-            return res.status(400).json({ message: 'Invalid request body' });
+            return res.status(400).json({ message: 'Invalid request body: missing payment or products' });
         }
 
         // Вызов функции отправки email
