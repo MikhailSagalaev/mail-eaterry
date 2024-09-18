@@ -1,130 +1,73 @@
 const express = require('express');
-const app = express();
+const axios = require('axios');
 require('dotenv').config();
-const nodemailer = require('nodemailer');
 
-const transporter = nodemailer.createTransport({
-    host: "ssl://smtp.mail.ru",
-    port: 465,
-    secure: true,
-    auth: {
-        user: process.env.MAIL,
-        pass: process.env.PASSWORD
-    }
-});
+const app = express();
 
-app.use(express.json());
+app.use(express.json()); // Для парсинга JSON данных
 
+// Функция для отправки email через Unisender
 const sendEmail = async (body) => {
-    // Проверяем наличие полей перед деструктуризацией
-    const ma_email = body?.ma_email || '';
-    const ma_name = body?.ma_name || '';
-    const org = body?.org || '';
-    const address = body?.address || '';
-    const deadline = body?.deadline || '';
+    const { ma_email, ma_name, org, address, deadline, payment } = body;
     const comment = body['Комментарий'] || '';
-    
-    // Проверяем, существует ли объект payment
-    const payment = body?.payment || {};
-    const amount = payment?.amount || 0;
-    const products = payment?.products || [];
 
-    // Проверяем наличие продуктов перед сортировкой
-    const sortedProducts = products.length > 0 ? products.sort((a, b) => {
-        const nameA = a.name ? a.name.toLowerCase() : '';
-        const nameB = b.name ? a.name.toLowerCase() : '';
-
-        if (nameA < nameB) return -1;
-        if (nameA > nameB) return 1;
-        return 0;
-    }) : [];
-
-    // Вычисляем количество только если есть продукт
-    const totalQuantity = sortedProducts.reduce((acc, cur) => acc + (cur.quantity || 0), 0);
-
-    // Формируем сообщение, даже если данные неполные
-    let message = `
+    const message = `
       <h2>Информация о покупателе:</h2>
-      <p style="font-size: 20px">
-        <span style="margin: 5px 0">email: ${ma_email}</span> <br/>
-        <span style="margin: 5px 0">name: ${ma_name}</span> <br/>
-        <span style="margin: 5px 0">org: ${org}</span> <br/>
-        <span style="margin: 5px 0">address: ${address}</span> <br/>
-        <span style="margin: 5px 0">comment: ${comment}</span> <br/>
-        <span style="margin: 5px 0">deadline: ${deadline}</span> <br/>
-      </p>
-      <table style="margin-top: 30px;width: 100%;border-collapse: collapse;">
-        <thead>
-          <th style="text-align: left;font-weight: bold;padding: 5px;background: #efefef;border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;"> # </th>
-          <th style="text-align: left;font-weight: bold;padding: 5px;background: #efefef;border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;"> Название </th>
-          <th style="text-align: left;font-weight: bold;padding: 5px;background: #efefef;border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;"> Кол-во </th>
-          <th style="text-align: left;font-weight: bold;padding: 5px;background: #efefef;border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;"> Цена (РУБ)</th>
-          <th style="text-align: left;font-weight: bold;padding: 5px;background: #efefef;border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;"> Сумма (РУБ) </th>
-        </thead>
+      <p>Email: ${ma_email}</p>
+      <p>Имя: ${ma_name}</p>
+      <p>Организация: ${org}</p>
+      <p>Адрес: ${address}</p>
+      <p>Комментарий: ${comment}</p>
+      <p>Дедлайн: ${deadline}</p>
     `;
 
-    // Если есть продукты, добавляем их в сообщение
-    sortedProducts.forEach((product, idx) => {
-        message += `
-          <tr>
-            <td style="border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;padding: 5px;">${idx + 1}</td>
-            <td style="border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;padding: 5px;">${product.name || ''}</td>
-            <td style="border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;padding: 5px;">${product.quantity || 0}</td>
-            <td style="border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;padding: 5px;">${product.price || 0}</td>
-            <td style="border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;padding: 5px;">${product.amount || 0}</td>
-          </tr>
-        `;
-    });
+    // Формирование данных для запроса к Unisender API
+    const data = {
+        api_key: process.env.UNISENDER_API_KEY,
+        email: process.env.TO,            // Кому отправляется письмо
+        sender_name: org,                 // Отправитель
+        sender_email: process.env.MAIL,   // Email отправителя
+        subject: `Заявка от ${org} на ${deadline}`, // Тема письма
+        body: message,                    // Содержание письма
+        list_id: 'your_list_id'           // ID списка рассылки в Unisender
+    };
 
-    message += `
-      <tr>
-        <td></td>
-        <td></td>
-        <td style="font-size: 24px; font-weight: bold; padding: 20px 10px">КОЛ-ВО БЛЮД: ${totalQuantity}</td>
-        <td></td>
-        <td style="font-size: 24px; font-weight: bold; text-align: right; padding: 20px 10px">ИТОГО: ${amount} РУБ</td>
-      </tr>
-    </table>`;
-
-    // Отправка письма, даже если тело пустое или содержит только тестовые данные
-    return new Promise((res, rej) => {
-        transporter.sendMail({
-            from: process.env.MAIL,
-            to: process.env.TO,
-            subject: `Заявка от ${org || 'неизвестной организации'} на ${deadline || 'неизвестную дату'}`,
-            html: message
-        }, (err, info) => {
-            if (err) {
-                rej();
-                console.log(err);
-            } else {
-                res();
-                console.log("Message sent: " + info.response);
+    try {
+        const response = await axios.post('https://api.unisender.com/ru/api/sendEmail', data, {
+            headers: {
+                'Content-Type': 'application/json'
             }
         });
-    });
+
+        // Проверка на успешность отправки
+        if (response.data.result) {
+            console.log('Email успешно отправлен');
+        } else {
+            console.error('Ошибка отправки email:', response.data);
+        }
+    } catch (error) {
+        console.error('Ошибка при отправке email:', error);
+    }
 };
 
-
-
+// Обработчик для проверки работы сервера
 app.get('/', (req, res) => {
-    res.send('ok');
+    res.send('Сервер работает');
 });
 
-app.post('/', async (req, res) => {
+// Обработчик webhook запросов
+app.post('/webhook', async (req, res) => {
+    console.log('Request Body: ', req.body); // Логирование запроса
     try {
-        console.log("Request Body: ", req.body); // Логируем тело запроса
-        await sendEmail(req.body);
-        res.send('ok');
+        await sendEmail(req.body); // Отправка email через Unisender
+        res.status(200).send('Email отправлен');
     } catch (error) {
-        console.error('Error sending email:', error);
-        res.status(500).send('Error');
+        res.status(500).send('Ошибка при отправке email');
     }
 });
 
-
-app.listen(process.env.PORT || 3000, () => {
-    console.log('Server is running...');
+// Запуск сервера
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+    console.log(`Сервер запущен на порту ${port}`);
 });
-
-module.exports = app;
