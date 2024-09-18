@@ -20,10 +20,10 @@ app.use(express.json());
 // Функция для отправки email
 const sendEmail = async (body) => {
     try {
-        // Проверка, что необходимые данные есть
+        // Деструктуризация данных с проверкой
         const { ma_email, ma_name, org, address, deadline, payment } = body;
 
-        // Если объект payment или его свойства отсутствуют, выбрасываем ошибку
+        // Если объект payment отсутствует или не содержит products или amount
         if (!payment || !payment.products || !payment.amount) {
             throw new Error('Payment data is missing or incomplete');
         }
@@ -64,7 +64,7 @@ const sendEmail = async (body) => {
                     <td style="border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;padding: 5px;">${idx + 1}</td>
                     <td style="border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;padding: 5px;">${product.name}</td>
                     <td style="border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;padding: 5px;">${product.quantity}</td>
-                    <td style="border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;padding: 5px;">${product.price}</td>
+                    <td style="border-top: 1px solid #dddddd;border-bottom: 1px солид #dddddd;padding: 5px;">${product.price}</td>
                     <td style="border-top: 1px solid #dddddd;border-bottom: 1px solid #dddddd;padding: 5px;">${product.amount}</td>
                 </tr>
             `;
