@@ -26,7 +26,7 @@ const sendEmail = async (body) => {
     const org = body?.org || '';
     const address = body?.address || '';
     const deadline = body?.deadline || '';
-    const comment = body['Комментарий'] || '';
+    const comment = body?.comment|| '';
 
     const payment = body?.payment || {};
     const amount = payment?.amount || 0;
